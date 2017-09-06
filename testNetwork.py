@@ -5,7 +5,7 @@ import os
 import win32api as wapi
 from time import sleep
 from grabScreen import grab_screen, edit_img
-from alexnet import alexnet
+from neuralNets import alexnet, conv_net
 from vjoy import vj, setJoy
 
 WIDTH = 800
@@ -16,57 +16,37 @@ HEIGHT_SMALL = int(HEIGHT/10)
 LR = 1e-3
 EPOCHS = 8
 MODEL_NAME = 'models/track-mania-self-driving-small-net.model'
-TURN_TRESHOLD = 0.3
-ACCELERATION = -0.6 #its allways negative
-
-
-
-def decide_move(moves):
-    left=moves[0]
-    right=moves[1]
-    if abs(left)>TURN_TRESHOLD and abs(left)>right:
-        setJoy(left, ACCELERATION, 16000.0)
-        print("left")
-
-    elif right>TURN_TRESHOLD:
-        setJoy(right, ACCELERATION, 16000.0)
-        print("right")
-    sleep(0.1)
+TURN_TRESHOLD = 0.1
+ACCELERATION = -0.6
 
 
 def test_network():
     last_time = time.time()
     fps=0
-    model = alexnet(WIDTH_SMALL, HEIGHT_SMALL, LR)
+    model = conv_net(WIDTH_SMALL, HEIGHT_SMALL, LR)
     for i in list(range(3)):
         print(3-i)
         time.sleep(1)
+    model.load(MODEL_NAME)
     paused=False
     print("opening VJ")
     vj.open()
-
-    while(True):
-        
-        if(not paused):
-            
-            #get, edit and resize screen image
-            screen =  grab_screen(region=(0, HEIGHT_OFFSET, WIDTH, HEIGHT+HEIGHT_OFFSET)) # It is 800x360 window
+    while(True):        
+        if(not paused):            
+            screen =  grab_screen(region=(0, HEIGHT_OFFSET, WIDTH, HEIGHT+HEIGHT_OFFSET))
             screen = edit_img(screen)
-
             moves=model.predict([screen.reshape(WIDTH_SMALL, HEIGHT_SMALL, 1)])[0]
             
             moves = list(moves)
             print(moves)
             left=moves[0]
             right=moves[1]
-            if left>right:
-                setJoy(-1.0, ACCELERATION, 16000.0)
-                print("left",-left)
-
-            else:
-                setJoy(1.0, ACCELERATION, 16000.0)
-                print("right")
-            sleep(0.2)
+            if left>TURN_TRESHOLD and abs(left)>right:
+                setJoy(-left, ACCELERATION, 12000.0)
+                print("lijevo")
+            elif right>TURN_TRESHOLD:
+                setJoy(right, ACCELERATION, 12000.0)
+                print("desno")
             # sleep(0.1)
             fps=fps+1
             # Uncommet for debug mode on run
@@ -89,6 +69,5 @@ if __name__ == "__main__":
     try:
         test_network()
     finally:
-        #ALLWAYS CLOSE vJoy!!!
         print("closing VJ")
         vj.close()
